@@ -1,7 +1,7 @@
 let video, handpose, detections, img;
 let isFreehandMode = false;
-let previousIndexFingerPositions = [];
-let selectionMode = false;
+let pKeypointIndex = [];
+let isSelectionMode = false;
 let regionCaptured = false;
 let capturedRegion, capturedRegionWidth, capturedRegionHeight;
 let statusTimeout;
@@ -9,7 +9,6 @@ let originalImage;
 
 function setup() {
     createCanvas(1280, 480);
-    // showStatus('Loading... Please wait',9999);
     originalImage = loadImage('resized.png');
     img = loadImage('resized.png');
     video = createCapture(VIDEO);
@@ -35,15 +34,15 @@ function draw() {
     image(video, width / 2, 0, width / 2, height);
     if (isFreehandMode) {
         freeDraw(detections);
-    } else if (selectionMode && detections && detections.length > 0) {
-        const thumbTip = detections[0].landmarks[4];
-        const indexTip = detections[0].landmarks[8];
-        const region = drawBoundingBox(thumbTip, indexTip);
+    } else if (isSelectionMode && detections && detections.length > 0) {
+        const keypointThumb = detections[0].landmarks[4];
+        const keypointIndex = detections[0].landmarks[8];
+        const region = drawBoundingBox(keypointThumb, keypointIndex);
         if (regionCaptured) {
             image(capturedRegion, region.x, region.y, region.w, region.h);
         }
     }
-    if (detections && detections.length > 0 && !selectionMode) {
+    if (detections && detections.length > 0 && !isSelectionMode) {
         drawKeypoints(detections);
     }
 
@@ -67,26 +66,26 @@ function drawKeypoints(detections) {
 function freeDraw(detections) {
     if (detections && detections.length > 0) {
         let detection = detections[0];
-        let indexFingerTip = detection.landmarks[8];
-        let x = indexFingerTip[0] * (width / video.width) / 2;
-        let y = indexFingerTip[1] * (height / video.height);
-        previousIndexFingerPositions.push({ x, y });
+        let keypointIndex = detection.landmarks[8];
+        let x = keypointIndex[0] * (width / video.width) / 2;
+        let y = keypointIndex[1] * (height / video.height);
+        pKeypointIndex.push({ x, y });
         stroke(255, 0, 0);
         strokeWeight(3);
         noFill();
         beginShape();
-        for (let point of previousIndexFingerPositions) {
+        for (let point of pKeypointIndex) {
             vertex(point.x, point.y);
         }
         endShape();
     }
 }
 
-function drawBoundingBox(tipThumb, tipIndex) {
-    let x = min(tipThumb[0], tipIndex[0]) * (width / video.width) / 2;
-    let y = min(tipThumb[1], tipIndex[1]) * (height / video.height);
-    let w = abs(tipThumb[0] - tipIndex[0]) * (width / video.width) / 2;
-    let h = abs(tipThumb[1] - tipIndex[1]) * (height / video.height);
+function drawBoundingBox(keypointThumb, keypointIndex) {
+    let x = min(keypointThumb[0], keypointIndex[0]) * (width / video.width) / 2;
+    let y = min(keypointThumb[1], keypointIndex[1]) * (height / video.height);
+    let w = abs(keypointThumb[0] - keypointIndex[0]) * (width / video.width) / 2;
+    let h = abs(keypointThumb[1] - keypointIndex[1]) * (height / video.height);
     noFill();
     stroke(0, 0, 255);
     strokeWeight(2);
@@ -96,9 +95,9 @@ function drawBoundingBox(tipThumb, tipIndex) {
 }
 
 function captureRegion(detections) {
-    let thumbTip = detections[0].landmarks[4];
-    let indexTip = detections[0].landmarks[8];
-    let region = drawBoundingBox(thumbTip, indexTip);
+    let keypointThumb = detections[0].landmarks[4];
+    let keypointIndex = detections[0].landmarks[8];
+    let region = drawBoundingBox(keypointThumb, keypointIndex);
     capturedRegion = img.get(region.x, region.y, region.w, region.h);
     capturedRegionWidth = region.w;
     capturedRegionHeight = region.h;
@@ -106,9 +105,9 @@ function captureRegion(detections) {
 }
 
 function pasteRegion(detections) {
-    let thumbTip = detections[0].landmarks[4];
-    let indexTip = detections[0].landmarks[8];
-    let region = drawBoundingBox(thumbTip, indexTip);
+    let keypointThumb = detections[0].landmarks[4];
+    let keypointIndex = detections[0].landmarks[8];
+    let region = drawBoundingBox(keypointThumb, keypointIndex);
     img.copy(capturedRegion, 0, 0, capturedRegionWidth, capturedRegionHeight, region.x, region.y, region.w, region.h);
     regionCaptured = false;
 }
@@ -123,17 +122,17 @@ function keyPressed() {
     if (key === 'e') {
         if (isFreehandMode) {
             isFreehandMode = false;
-            previousIndexFingerPositions = [];
+            pKeypointIndex = [];
             console.log('Freehand mode disabled');
             showStatus('Freehand mode disabled. Ready');
-        } else if (selectionMode) {
+        } else if (isSelectionMode) {
             if (regionCaptured) {
                 regionCaptured = false;
-                selectionMode = false;
+                isSelectionMode = false;
                 console.log('Region cleared');
                 showStatus('Region cleared. Selection mode disabled. Ready');
             } else {
-                selectionMode = false;
+                isSelectionMode = false;
                 console.log('Selection mode disabled');
                 showStatus('Selection mode disabled. Ready');
             }
@@ -143,12 +142,12 @@ function keyPressed() {
         showTooltip("f - Enable freehand mode, s - Enable selection mode");
     }
     if (key === 's') {
-        selectionMode = true;
+        isSelectionMode = true;
         console.log('Selection mode enabled');
         showStatus('Selection mode enabled. Select region with your thumb and index finger. Press c to capture region. Press e to disable selection mode');
         showTooltip("c - Capture region, e - Disable selection mode");
     }
-    if (key === 'c' && selectionMode) {
+    if (key === 'c' && isSelectionMode) {
         captureRegion(detections);
         console.log('Region captured');
         showStatus('Region captured. Press v to paste region. Press e to disable selection mode');
@@ -157,7 +156,7 @@ function keyPressed() {
     if (key === 'v' && regionCaptured) {
         pasteRegion(detections);
         console.log('Region pasted');
-        selectionMode = false;
+        isSelectionMode = false;
         console.log('Selection mode disabled');
         showStatus('Region pasted. Selection mode disabled. Ready');
         showTooltip("f - Enable freehand mode, s - Enable selection mode");
