@@ -1,13 +1,51 @@
 body {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
     height: 100vh;
     margin: 0;
     background-color: #F5F5F5;
+    font-family: Arial, sans-serif;
+}
+
+/* h1 {
+    margin: 0;
+    padding: 0;
+    font-size: 24px;
+    color: #333;
+    align-items:start;
+} */
+
+#content {
+    text-align: center;
 }
 
 canvas {
     border: 2px solid black;
     border-radius: 10px;
+    margin-top: 20px;
+}
+
+#status {
+    color: #333;
+    margin: 10px 0;
+    font-size: 18px;
+}
+
+#tooltip {
+    margin-top: 10px;
+    color: #666;
+}
+
+.fade-out {
+    transition: opacity 1s ease-out;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Ensure that the status is visible by default (when .fade-out isn't applied) */
+#status {
+    transition: visibility 0s, opacity 1s linear;
+    visibility: visible;
+    opacity: 1;
 }

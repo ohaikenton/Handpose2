@@ -4,19 +4,25 @@ let previousIndexFingerPositions = [];
 let selectionMode = false;
 let regionCaptured = false;
 let capturedRegion, capturedRegionWidth, capturedRegionHeight;
-
+let statusTimeout;
+let originalImage;
 
 function setup() {
     createCanvas(1280, 480);
+    // showStatus('Loading... Please wait',9999);
+    originalImage = loadImage('resized.png');
     img = loadImage('resized.png');
     video = createCapture(VIDEO);
     video.size(width / 2, height);
     video.hide();
     handpose = ml5.handpose(video, modelReady);
+    showTooltip("Loading...");
 }
 
 function modelReady() {
     console.log('Model ready');
+    showStatus('Ready');
+    showTooltip("f - Enable freehand mode, s - Enable selection mode");
     handpose.on('hand', gotResults);
 }
 
@@ -81,13 +87,11 @@ function drawBoundingBox(tipThumb, tipIndex) {
     let y = min(tipThumb[1], tipIndex[1]) * (height / video.height);
     let w = abs(tipThumb[0] - tipIndex[0]) * (width / video.width) / 2;
     let h = abs(tipThumb[1] - tipIndex[1]) * (height / video.height);
-
     noFill();
     stroke(0, 0, 255);
     strokeWeight(2);
     rect(x + width / 2, y, w, h);
     rect(x, y, w, h);
-
     return { x, y, w, h };
 }
 
@@ -113,29 +117,70 @@ function keyPressed() {
     if (key === 'f') {
         isFreehandMode = true; 
         console.log('Freehand mode enabled');
+        showStatus('Freehand mode enabled');
+        showTooltip("e - Disable freehand mode");
     }
     if (key === 'e') {
         if (isFreehandMode) {
             isFreehandMode = false;
             previousIndexFingerPositions = [];
             console.log('Freehand mode disabled');
+            showStatus('Freehand mode disabled. Ready');
         } else if (selectionMode) {
-            selectionMode = false;
-            console.log('Selection mode disabled');
-        }
+            if (regionCaptured) {
+                regionCaptured = false;
+                selectionMode = false;
+                console.log('Region cleared');
+                showStatus('Region cleared. Selection mode disabled. Ready');
+            } else {
+                selectionMode = false;
+                console.log('Selection mode disabled');
+                showStatus('Selection mode disabled. Ready');
+            }
+        } 
+        img = originalImage.get();
+        image(img, 0, 0, width / 2, height);
+        showTooltip("f - Enable freehand mode, s - Enable selection mode");
     }
     if (key === 's') {
         selectionMode = true;
         console.log('Selection mode enabled');
+        showStatus('Selection mode enabled. Select region with your thumb and index finger. Press c to capture region. Press e to disable selection mode');
+        showTooltip("c - Capture region, e - Disable selection mode");
     }
     if (key === 'c' && selectionMode) {
         captureRegion(detections);
         console.log('Region captured');
+        showStatus('Region captured. Press v to paste region. Press e to disable selection mode');
+        showTooltip("v - Paste region, e - Disable selection mode");
     }
     if (key === 'v' && regionCaptured) {
         pasteRegion(detections);
         console.log('Region pasted');
         selectionMode = false;
         console.log('Selection mode disabled');
+        showStatus('Region pasted. Selection mode disabled. Ready');
+        showTooltip("f - Enable freehand mode, s - Enable selection mode");
     }
 }
+
+const checkForElement = setInterval(() => {
+    const injectedElement = document.getElementById('defaultCanvas0');
+    if (injectedElement) {
+        const newElement = document.createElement('div');
+        newElement.id = 'status';
+        newElement.innerHTML = 'Loading... Please wait';
+        injectedElement.parentNode.insertBefore(newElement, injectedElement.nextSibling);
+        clearInterval(checkForElement);
+    }
+}, 100); 
+
+function showStatus(message) {
+    statusElement = document.getElementById('status');
+    statusElement.innerHTML = message;
+}
+
+function showTooltip(message) {
+    tooltipElement = document.getElementById('tooltip');
+    tooltipElement.innerHTML = message;
+}    
